@@ -1,0 +1,50 @@
+{
+  "last_active_day": {
+    "trigger_value": "thấp (≤ 60)",
+    "interpretation": "Sinh viên đã ngừng tương tác với LMS",
+    "intervention": "Liên hệ ngay qua điện thoại/email cá nhân. Hỏi thăm lý do ngừng học, đề nghị hỗ trợ tâm lý nếu cần. Trường hợp im lặng > 14 ngày: chuyển case cho phòng CTSV.",
+    "priority": "critical"
+  },
+  "recent_30d_clicks": {
+    "trigger_value": "thấp (≤ 50 click trong 30 ngày)",
+    "interpretation": "Engagement giảm mạnh trong giai đoạn cuối",
+    "intervention": "Gửi email nhắc nhở về deadline sắp tới. Mời tham gia buổi tutoring nhóm. Theo dõi sát trong 7 ngày tới.",
+    "priority": "high"
+  },
+  "active_days": {
+    "trigger_value": "thấp (< 20 ngày)",
+    "interpretation": "Tương tác thưa thớt, không có thói quen học đều đặn",
+    "intervention": "Khuyến nghị lập study schedule với cố vấn. Giới thiệu công cụ time management. Có thể ghép cặp với 'study buddy'.",
+    "priority": "medium"
+  },
+  "highest_education": {
+    "trigger_value": "thấp (No qualification / Lower than A-Level)",
+    "interpretation": "Có thể thiếu nền tảng học thuật",
+    "intervention": "Đánh giá foundation skills (đọc hiểu, math). Nếu yếu, đăng ký lớp hỗ trợ academic skills. Cung cấp tài liệu pre-requisite review.",
+    "priority": "medium"
+  },
+  "imd_band": {
+    "trigger_value": "vùng nghèo (IMD band thấp)",
+    "interpretation": "Có thể có khó khăn kinh tế ảnh hưởng học tập",
+    "intervention": "Giới thiệu các chương trình học bổng/trợ cấp. Kiểm tra access đến internet, thiết bị học. Cung cấp thông tin về hardship fund nếu có.",
+    "priority": "medium"
+  },
+  "click_quiz": {
+    "trigger_value": "= 0 (không làm quiz)",
+    "interpretation": "Né tránh self-assessment formative",
+    "intervention": "Thiết kế low-stakes quiz để giảm áp lực. Cung cấp practice tests có giải đáp chi tiết. Khuyến khích metacognitive strategies.",
+    "priority": "low"
+  },
+  "click_homepage": {
+    "trigger_value": "thấp",
+    "interpretation": "Ít truy cập navigation chính của course",
+    "intervention": "Hướng dẫn lại cách dùng LMS qua video tutorial. Có thể SV đang dùng kênh khác (mobile, email) thay vì web.",
+    "priority": "low"
+  },
+  "num_of_prev_attempts": {
+    "trigger_value": "cao (≥ 1)",
+    "interpretation": "Đã từng học lại module này",
+    "intervention": "Phỏng vấn lý do trượt lần trước. Lập kế hoạch học tập cá nhân hóa tránh lặp lại sai lầm. Mentoring 1-1 nếu có thể.",
+    "priority": "high"
+  }
+}

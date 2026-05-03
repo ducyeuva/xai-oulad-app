@@ -1,0 +1,16 @@
+{
+  "training_date": "2026-05-03T06:19:53.554993",
+  "data_split": {
+    "n_train": 22815,
+    "n_val": 4889,
+    "n_test": 4889,
+    "random_state": 42
+  },
+  "data_hashes": {
+    "X_train": "47804b12dea366b3",
+    "X_test": "1f74c7224359945e"
+  },
+  "preprocessing_config": {
+    "cutoff_day": 100
+  }
+}

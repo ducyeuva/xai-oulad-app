@@ -1,0 +1,9 @@
+{
+  "model_type": "XGBClassifier",
+  "framework_version": "3.2.0",
+  "hyperparameters": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.1
+  }
+}
