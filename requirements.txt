@@ -1,7 +1,7 @@
 streamlit
-numpy<2
-pandas
-scikit-learn
-xgboost==3.0.0
-shap==0.46.0
+numpy==2.0.2
+pandas==2.2.2
+scikit-learn==1.6.1
+xgboost==3.2.0
+shap==0.51.0
 plotly
