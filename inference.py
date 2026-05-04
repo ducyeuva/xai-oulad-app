@@ -108,5 +108,3 @@ def predict_batch(students_df, include_shap=False):
         "decision": ["RISK" if p >= _TH_DECISION else "SAFE" for p in p_risk],
     }, index=students_df.index)
 
-
-=== END OF inference.py ===
