@@ -1,6 +1,6 @@
 """
 XAI OULAD Risk Warning System - Streamlit App
-Phase 6 (Cach C): Form predict + Dashboard OULAD 32k
+Phase 7: Form predict + Dashboard 32K + SHAP analysis + Footer
 """
 import sys
 import json
@@ -55,7 +55,7 @@ def make_gauge(p_risk, warning_level):
         number={"valueformat": ".3f", "font": {"size": 40}},
         title={"text": "P(Rủi ro)", "font": {"size": 18}},
         gauge={
-            "axis": {"range": [0, 1], "tickwidth": 1, "tickcolor": "gray"},
+            "axis": {"range": [0, 1]},
             "bar": {"color": color, "thickness": 0.8},
             "steps": [
                 {"range": [0, th_medium], "color": "#D5F5E3"},
@@ -74,7 +74,7 @@ def make_gauge(p_risk, warning_level):
     return fig
 
 
-def make_shap_bar_chart(shap_factors):
+def make_shap_bar_chart(shap_factors, title="Top 5 đặc trưng ảnh hưởng (SHAP)"):
     df = pd.DataFrame(shap_factors).sort_values("shap_value")
     colors = ["#27AE60" if v > 0 else "#C0392B" for v in df["shap_value"]]
     fig = go.Figure(go.Bar(
@@ -84,7 +84,7 @@ def make_shap_bar_chart(shap_factors):
         textposition="outside",
     ))
     fig.update_layout(
-        title="Top 5 đặc trưng ảnh hưởng (SHAP)",
+        title=title,
         xaxis_title="SHAP value (← Risk | Safe →)",
         yaxis_title="", height=350,
         margin=dict(l=20, r=80, t=50, b=40),
@@ -94,13 +94,41 @@ def make_shap_bar_chart(shap_factors):
     return fig
 
 
+def make_shap_global_chart(shap_global):
+    df = pd.DataFrame(shap_global)
+    df = df.sort_values("mean_abs_shap", ascending=True)
+    
+    fig = go.Figure(go.Bar(
+        x=df["mean_abs_shap"], y=df["feature"], orientation="h",
+        marker=dict(color="#3498DB"),
+        text=[f"{v:.3f}" for v in df["mean_abs_shap"]],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        title="Top 15 đặc trưng quan trọng nhất (SHAP Global)",
+        xaxis_title="Mean |SHAP value| (trên 1000 SV mẫu)",
+        yaxis_title="", height=550,
+        margin=dict(l=20, r=80, t=50, b=40),
+        showlegend=False, plot_bgcolor="white",
+    )
+    return fig
+
+
 @st.cache_data
 def load_dashboard_data():
-    """Load 32k predictions từ CSV (cached)."""
     csv_path = DEPLOY_DIR / "oulad_32k_predictions.csv"
     if not csv_path.exists():
         return None
     return pd.read_csv(csv_path)
+
+
+@st.cache_data
+def load_shap_data():
+    json_path = DEPLOY_DIR / "oulad_32k_shap_data.json"
+    if not json_path.exists():
+        return None
+    with open(json_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 st.title("Hệ thống cảnh báo sớm rủi ro học tập")
@@ -136,11 +164,11 @@ with st.sidebar:
 
 tab1, tab2, tab3 = st.tabs([
     "Dự đoán 1 sinh viên",
-    "Dashboard OULAD 32K",
+    "Dashboard OULAD 32K + SHAP",
     "Về hệ thống",
 ])
 
-# ===== TAB 1 (Phase 4 - giữ nguyên) =====
+# ===== TAB 1 =====
 with tab1:
     st.header("Dự đoán cho 1 sinh viên")
     st.caption("Nhập đặc trưng của sinh viên để dự đoán mức rủi ro học tập.")
@@ -201,10 +229,7 @@ with tab1:
             st.divider()
             st.caption(f"Tổng features: {len(user_inputs)}/43")
     
-    predict_btn = st.button(
-        "Dự đoán", type="primary",
-        use_container_width=True, key="predict_btn",
-    )
+    predict_btn = st.button("Dự đoán", type="primary", use_container_width=True, key="predict_btn")
     
     if predict_btn:
         student_df = pd.DataFrame([user_inputs])[_FEATURE_COLS]
@@ -296,21 +321,19 @@ with tab1:
         
         st.caption(f"Thời gian xử lý: {report['metadata']['processing_time_seconds']}s")
 
-# ===== TAB 2: DASHBOARD OULAD 32K =====
+# ===== TAB 2: Dashboard + SHAP =====
 with tab2:
-    st.header("📊 Dashboard tổng quan dataset OULAD")
+    st.header("📊 Dashboard tổng quan dataset OULAD + Phân tích SHAP")
     st.caption(
-        "Phân tích trực quan kết quả dự đoán trên toàn bộ dataset OULAD. "
-        "Kết quả được tính sẵn từ pipeline trong Google Colab."
+        "Phân tích trực quan kết quả dự đoán trên toàn bộ dataset OULAD "
+        "kèm phân tích Explainable AI (SHAP)."
     )
     
     df = load_dashboard_data()
+    shap_data = load_shap_data()
     
     if df is None:
-        st.error(
-            "❌ Không tìm thấy file `oulad_32k_predictions.csv`. "
-            "Vui lòng upload file lên repo trước."
-        )
+        st.error("❌ Không tìm thấy file `oulad_32k_predictions.csv`.")
     else:
         # ===== METRICS =====
         st.subheader("Tổng quan")
@@ -336,13 +359,11 @@ with tab2:
         st.divider()
         
         # ===== HÀNG 1: Bar + Pie =====
+        levels_order = ["EXTREME", "HIGH", "MEDIUM", "SAFE"]
         col_a, col_b = st.columns(2)
         
         with col_a:
-            # Bar chart phân bố
-            levels_order = ["EXTREME", "HIGH", "MEDIUM", "SAFE"]
             counts_ordered = pd.Series(counts).reindex(levels_order, fill_value=0)
-            
             fig_bar = go.Figure(go.Bar(
                 x=[WARNING_LABELS_VN[l] for l in counts_ordered.index],
                 y=counts_ordered.values,
@@ -352,14 +373,12 @@ with tab2:
             ))
             fig_bar.update_layout(
                 title="Phân bố mức cảnh báo",
-                xaxis_title="Mức cảnh báo",
-                yaxis_title="Số SV",
+                xaxis_title="Mức cảnh báo", yaxis_title="Số SV",
                 height=400, plot_bgcolor="white", showlegend=False,
             )
             st.plotly_chart(fig_bar, use_container_width=True)
         
         with col_b:
-            # Pie chart
             fig_pie = go.Figure(go.Pie(
                 labels=[WARNING_LABELS_VN[l] for l in counts_ordered.index],
                 values=counts_ordered.values,
@@ -367,17 +386,13 @@ with tab2:
                 hole=0.4,
                 textinfo="label+percent",
             ))
-            fig_pie.update_layout(
-                title="Tỷ lệ phần trăm",
-                height=400, showlegend=True,
-            )
+            fig_pie.update_layout(title="Tỷ lệ phần trăm", height=400)
             st.plotly_chart(fig_pie, use_container_width=True)
         
         st.divider()
         
-        # ===== HÀNG 2: Phân bố theo Module =====
+        # ===== Phân bố theo Module =====
         st.subheader("Phân bố theo khóa học (Module)")
-        
         if "module" in df.columns:
             mod_dist = df.groupby(["module", "warning_level"]).size().unstack(fill_value=0)
             mod_dist = mod_dist.reindex(columns=levels_order, fill_value=0)
@@ -386,37 +401,31 @@ with tab2:
             for level in levels_order:
                 fig_mod.add_trace(go.Bar(
                     name=WARNING_LABELS_VN[level],
-                    x=mod_dist.index,
-                    y=mod_dist[level],
+                    x=mod_dist.index, y=mod_dist[level],
                     marker_color=WARNING_COLORS[level],
                 ))
             fig_mod.update_layout(
                 barmode="stack",
                 title="Số SV theo Module và Mức cảnh báo",
-                xaxis_title="Module",
-                yaxis_title="Số SV",
+                xaxis_title="Module", yaxis_title="Số SV",
                 height=450, plot_bgcolor="white",
             )
             st.plotly_chart(fig_mod, use_container_width=True)
         
         st.divider()
         
-        # ===== HÀNG 3: Histogram P(Risk) =====
+        # ===== Histogram P(Risk) =====
         st.subheader("Phân bố xác suất P(Risk) trên 32K SV")
-        
         fig_hist = px.histogram(
-            df, x="p_risk", nbins=50,
-            color="warning_level",
+            df, x="p_risk", nbins=50, color="warning_level",
             color_discrete_map=WARNING_COLORS,
             category_orders={"warning_level": levels_order},
         )
         fig_hist.update_layout(
             title="Histogram P(Risk)",
-            xaxis_title="P(Risk)",
-            yaxis_title="Số SV",
+            xaxis_title="P(Risk)", yaxis_title="Số SV",
             height=400, plot_bgcolor="white",
         )
-        # Thêm vertical lines cho thresholds
         for th_name, th_val in [
             ("Decision (0.325)", _THRESHOLDS["decision_threshold"]),
             ("HIGH (0.45)", _THRESHOLDS["warning_levels"]["high"]),
@@ -430,19 +439,79 @@ with tab2:
         
         st.divider()
         
-        # ===== HÀNG 4: Top SV rủi ro =====
-        st.subheader("Top 50 sinh viên rủi ro cao nhất")
+        # ===== SHAP GLOBAL =====
+        if shap_data is not None:
+            st.subheader("🔬 Phân tích SHAP Global")
+            st.caption(
+                "Đặc trưng quan trọng nhất trên toàn bộ model "
+                f"(tính từ {shap_data['metadata']['n_sample_global']:,} SV mẫu)"
+            )
+            st.plotly_chart(
+                make_shap_global_chart(shap_data["shap_global_top15"]),
+                use_container_width=True,
+            )
+            
+            st.divider()
+            
+            # ===== SHAP LOCAL - 4 CASE STUDIES =====
+            st.subheader("🔍 Phân tích SHAP Local - 4 Case Studies")
+            st.caption("Phân tích SHAP cho 4 sinh viên đại diện 4 mức cảnh báo:")
+            
+            case_tabs = st.tabs([
+                f"🔴 EXTREME (P={shap_data['shap_local_cases']['EXTREME']['p_risk']:.3f})",
+                f"🟠 HIGH (P={shap_data['shap_local_cases']['HIGH']['p_risk']:.3f})",
+                f"🟡 MEDIUM (P={shap_data['shap_local_cases']['MEDIUM']['p_risk']:.3f})",
+                f"🟢 SAFE (P={shap_data['shap_local_cases']['SAFE']['p_risk']:.3f})",
+            ])
+            
+            for i, level in enumerate(levels_order):
+                with case_tabs[i]:
+                    case = shap_data["shap_local_cases"][level]
+                    st.markdown(
+                        f"**SV index:** {case['sv_index']}  | "
+                        f"**P(Risk):** {case['p_risk']:.4f}  | "
+                        f"**Mức:** {WARNING_LABELS_VN[level]} ({level})"
+                    )
+                    
+                    col_g, col_s = st.columns([1, 2])
+                    with col_g:
+                        st.plotly_chart(
+                            make_gauge(case['p_risk'], level),
+                            use_container_width=True,
+                        )
+                    with col_s:
+                        st.plotly_chart(
+                            make_shap_bar_chart(
+                                case["top5_factors"],
+                                title=f"SHAP cho SV {level}",
+                            ),
+                            use_container_width=True,
+                        )
+                    
+                    # Bảng chi tiết
+                    factors_df = pd.DataFrame(case["top5_factors"])
+                    factors_df["direction_emoji"] = factors_df["direction"].map({
+                        "Risk": "⬇️ Risk", "Safe": "⬆️ Safe"
+                    })
+                    st.dataframe(
+                        factors_df[["feature", "value", "shap_value", "direction_emoji"]],
+                        use_container_width=True, hide_index=True,
+                    )
+        else:
+            st.info("ℹ️ Chưa có dữ liệu SHAP, vui lòng upload `oulad_32k_shap_data.json`.")
         
+        st.divider()
+        
+        # ===== Top 50 SV rủi ro =====
+        st.subheader("⚠️ Top 50 sinh viên rủi ro cao nhất")
         top_risky = df.sort_values("p_risk", ascending=False).head(50)
         
-        # Format columns
         display_cols = ["id_student", "p_risk", "warning_level", "module"]
         if "highest_education" in top_risky.columns:
             display_cols += ["highest_education", "studied_credits"]
         if "total_clicks" in top_risky.columns:
             display_cols += ["total_clicks", "active_days"]
         
-        # Style với color
         def highlight_warning(row):
             color = WARNING_COLORS.get(row["warning_level"], "#FFFFFF")
             return [f"background-color: {color}33" for _ in row]
@@ -452,7 +521,6 @@ with tab2:
         })
         st.dataframe(styled, use_container_width=True, hide_index=True)
         
-        # Download button
         csv_bytes = df.to_csv(index=False).encode("utf-8")
         st.download_button(
             label="📥 Download toàn bộ kết quả 32K SV (CSV)",
@@ -474,5 +542,26 @@ with tab3:
     - Production model: XGBoost + SMOTE + Isotonic Calibration
     """)
 
+# ===== FOOTER =====
 st.divider()
-st.caption("XAI OULAD v1.0 | Học máy nâng cao - Cao học | 2026")
+footer_html = """
+<div style="text-align:center;padding:20px;background-color:#F8F9FA;
+            border-radius:10px;margin-top:20px;">
+    <p style="margin:0;font-weight:bold;font-size:16px;color:#2C3E50;">
+        Hệ thống cảnh báo sớm rủi ro học tập - XAI trên dataset OULAD
+    </p>
+    <p style="margin:5px 0;color:#555;font-size:14px;">
+        <b>Học phần:</b> Học máy nâng cao  | 
+        <b>GVHD:</b> NGÔ QUỐC VIỆT
+    </p>
+    <p style="margin:5px 0;color:#555;font-size:14px;">
+        <b>Học viên cao học:</b><br>
+        Hoàng Châu Ngọc Phương - KHMT836028<br>
+        Đoàn Huỳnh Thanh Tú - KHMT836034
+    </p>
+    <p style="margin:5px 0 0;color:#888;font-size:12px;">
+        XAI OULAD v1.0 | 2026
+    </p>
+</div>
+"""
+st.markdown(footer_html, unsafe_allow_html=True)
