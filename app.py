@@ -1,6 +1,6 @@
 """
 XAI OULAD Risk Warning System - Streamlit App
-Phase 3: Form predict 1 sinh viên
+Phase 5: Form predict + SHAP table + Intervention suggestions
 """
 import sys
 import json
@@ -14,9 +14,6 @@ sys.path.insert(0, str(DEPLOY_DIR))
 
 from inference import predict_new_student, _FEATURE_COLS, _THRESHOLDS
 
-# ============================================================
-# CONFIG
-# ============================================================
 st.set_page_config(
     page_title="XAI OULAD - Cảnh báo rủi ro học tập",
     layout="wide",
@@ -24,28 +21,39 @@ st.set_page_config(
 )
 
 WARNING_COLORS = {
-    "EXTREME": "#C0392B",
-    "HIGH":    "#E67E22",
-    "MEDIUM":  "#F39C12",
-    "SAFE":    "#27AE60",
+    "EXTREME": "#C0392B", "HIGH": "#E67E22",
+    "MEDIUM": "#F39C12",  "SAFE": "#27AE60",
 }
-
 WARNING_LABELS_VN = {
-    "EXTREME": "Cực cao",
-    "HIGH":    "Cao",
-    "MEDIUM":  "Trung bình",
-    "SAFE":    "An toàn",
+    "EXTREME": "Cực cao", "HIGH": "Cao",
+    "MEDIUM": "Trung bình", "SAFE": "An toàn",
+}
+PRIORITY_COLORS = {
+    "critical": "#C0392B",
+    "high": "#E67E22",
+    "medium": "#F39C12",
+    "low": "#27AE60",
+    "none": "#95A5A6",
+}
+PRIORITY_ICONS = {
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🟢",
+    "none": "ℹ️",
+}
+PRIORITY_LABELS_VN = {
+    "critical": "Cấp bách",
+    "high": "Cao",
+    "medium": "Trung bình",
+    "low": "Thấp",
+    "none": "Bình thường",
 }
 
-# ============================================================
-# HEADER
-# ============================================================
 st.title("Hệ thống cảnh báo sớm rủi ro học tập")
 st.caption("Powered by XGBoost + SHAP/LIME | Dataset: OULAD")
 
-# ============================================================
 # SIDEBAR
-# ============================================================
 with st.sidebar:
     st.header("Thông tin Model")
     
@@ -76,23 +84,17 @@ with st.sidebar:
     st.text(f"HIGH:    >= {_THRESHOLDS['warning_levels']['high']:.2f}")
     st.text(f"MEDIUM:  >= {_THRESHOLDS['warning_levels']['medium']:.2f}")
 
-# ============================================================
-# TABS
-# ============================================================
 tab1, tab2, tab3 = st.tabs([
     "Dự đoán 1 sinh viên",
     "Upload CSV (batch)",
     "Về hệ thống",
 ])
 
-# ============================================================
-# TAB 1: PREDICT 1 STUDENT - PHASE 3
-# ============================================================
+# TAB 1
 with tab1:
     st.header("Dự đoán cho 1 sinh viên")
     st.caption("Nhập đặc trưng của sinh viên để dự đoán mức rủi ro học tập.")
     
-    # Phân loại 43 features
     behavioral_features = [
         f for f in _FEATURE_COLS if f.startswith("click_") or f in [
             "total_clicks", "active_days", "last_active_day",
@@ -108,7 +110,6 @@ with tab1:
     module_features = [f for f in _FEATURE_COLS if f.startswith("mod_")]
     region_features = [f for f in _FEATURE_COLS if f.startswith("region_")]
     
-    # Default values
     default_values = {
         "total_clicks": 500, "active_days": 30, "last_active_day": 80,
         "first_active_day": 1, "pre_start_clicks": 0, "recent_30d_clicks": 100,
@@ -117,7 +118,6 @@ with tab1:
         "studied_credits": 60, "gender": 0,
     }
     
-    # FORM
     with st.expander("Nhập đặc trưng (43 features)", expanded=True):
         col1, col2, col3 = st.columns(3)
         user_inputs = {}
@@ -126,28 +126,21 @@ with tab1:
             st.markdown("**Hành vi (Behavioral)**")
             for feat in behavioral_features:
                 user_inputs[feat] = st.number_input(
-                    feat,
-                    value=int(default_values.get(feat, 0)),
-                    min_value=0,
-                    key=f"in_{feat}",
+                    feat, value=int(default_values.get(feat, 0)),
+                    min_value=0, key=f"in_{feat}",
                 )
         
         with col2:
             st.markdown("**Nhân khẩu (Demographic)**")
             for feat in demographic_features:
                 user_inputs[feat] = st.number_input(
-                    feat,
-                    value=int(default_values.get(feat, 0)),
-                    min_value=0,
-                    key=f"in_{feat}",
+                    feat, value=int(default_values.get(feat, 0)),
+                    min_value=0, key=f"in_{feat}",
                 )
             
             st.markdown("**Module (chọn 1)**")
             mod_selected = st.selectbox(
-                "Khóa học",
-                options=module_features,
-                index=0,
-                key="mod_select",
+                "Khóa học", options=module_features, index=0, key="mod_select",
             )
             for m in module_features:
                 user_inputs[m] = 1 if m == mod_selected else 0
@@ -155,10 +148,7 @@ with tab1:
         with col3:
             st.markdown("**Region (chọn 1)**")
             region_selected = st.selectbox(
-                "Vùng",
-                options=region_features,
-                index=0,
-                key="region_select",
+                "Vùng", options=region_features, index=0, key="region_select",
             )
             for r in region_features:
                 user_inputs[r] = 1 if r == region_selected else 0
@@ -166,15 +156,11 @@ with tab1:
             st.divider()
             st.caption(f"Tổng features: {len(user_inputs)}/43")
     
-    # PREDICT BUTTON
     predict_btn = st.button(
-        "Dự đoán",
-        type="primary",
-        use_container_width=True,
-        key="predict_btn",
+        "Dự đoán", type="primary",
+        use_container_width=True, key="predict_btn",
     )
     
-    # SHOW RESULT
     if predict_btn:
         missing = set(_FEATURE_COLS) - set(user_inputs.keys())
         if missing:
@@ -193,14 +179,14 @@ with tab1:
             p_risk = report["prediction"]["p_risk"]
             
             banner_html = (
-                f'<div style="background-color:' + color + ';padding:25px;'
-                f'border-radius:10px;text-align:center;color:white;">'
-                f'<h2 style="margin:0;color:white;">'
-                f'Mức cảnh báo: ' + label_vn + ' (' + level + ')</h2>'
-                f'<p style="margin:10px 0 0;font-size:20px;color:white;">'
-                f'P(Rủi ro) = ' + f"{p_risk:.4f}" + '</p>'
-                f'<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
-                f'Decision: ' + report["prediction"]["decision"]
+                '<div style="background-color:' + color + ';padding:25px;'
+                'border-radius:10px;text-align:center;color:white;">'
+                '<h2 style="margin:0;color:white;">'
+                'Mức cảnh báo: ' + label_vn + ' (' + level + ')</h2>'
+                '<p style="margin:10px 0 0;font-size:20px;color:white;">'
+                'P(Rủi ro) = ' + f"{p_risk:.4f}" + '</p>'
+                '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
+                'Decision: ' + report["prediction"]["decision"]
                 + ' (threshold = ' + f"{_THRESHOLDS['decision_threshold']:.3f}"
                 + ')</p></div>'
             )
@@ -208,6 +194,7 @@ with tab1:
             
             st.write("")
             
+            # ===== TOP 5 SHAP =====
             st.subheader("Top 5 đặc trưng ảnh hưởng nhất")
             shap_data = report["explanations"]["shap_factors"]
             shap_df = pd.DataFrame(shap_data)
@@ -216,22 +203,74 @@ with tab1:
             })
             st.dataframe(
                 shap_df[["feature", "value", "shap_value", "direction_emoji"]],
-                use_container_width=True,
-                hide_index=True,
+                use_container_width=True, hide_index=True,
             )
+            
+            # ===== INTERVENTION SUGGESTIONS =====
+            st.divider()
+            st.subheader("🚨 Gợi ý can thiệp")
+            
+            interventions = report.get("interventions", [])
+            
+            if not interventions:
+                st.info("Không có gợi ý can thiệp.")
+            elif interventions[0].get("priority") == "none":
+                # Trường hợp SAFE
+                st.success(
+                    "✅ **SV trong vùng an toàn** - không cần can thiệp đặc biệt. "
+                    "Theo dõi định kỳ qua các kênh thông thường."
+                )
+            else:
+                st.caption(
+                    f"Dựa trên {len(interventions)} đặc trưng đẩy về Risk, "
+                    "đây là các gợi ý can thiệp theo thứ tự ưu tiên:"
+                )
+                
+                for idx, intv in enumerate(interventions, 1):
+                    priority = intv.get("priority", "medium")
+                    p_color = PRIORITY_COLORS.get(priority, "#95A5A6")
+                    p_icon = PRIORITY_ICONS.get(priority, "ℹ️")
+                    p_label = PRIORITY_LABELS_VN.get(priority, priority)
+                    
+                    feature = intv.get("feature", "N/A")
+                    interpretation = intv.get("interpretation", "")
+                    intervention_text = intv.get("intervention", "")
+                    shap_contrib = intv.get("shap_contribution", 0)
+                    
+                    card_html = (
+                        '<div style="background-color:#F8F9FA;'
+                        'border-left:5px solid ' + p_color + ';'
+                        'padding:15px;margin-bottom:10px;border-radius:5px;">'
+                        '<div style="display:flex;justify-content:space-between;'
+                        'align-items:center;margin-bottom:8px;">'
+                        '<span style="font-weight:bold;font-size:16px;">'
+                        + p_icon + ' Mức độ: ' + p_label
+                        + ' (Ưu tiên ' + str(idx) + ')</span>'
+                        '<span style="background-color:' + p_color
+                        + ';color:white;padding:3px 10px;'
+                        'border-radius:12px;font-size:12px;">'
+                        + feature + '</span></div>'
+                        '<p style="margin:5px 0;color:#555;font-size:13px;">'
+                        '<i>📊 ' + interpretation + '</i></p>'
+                        '<p style="margin:8px 0 0 0;font-size:14px;">'
+                        '<b>💡 Hành động:</b> ' + intervention_text + '</p>'
+                        '<p style="margin:5px 0 0 0;color:#888;font-size:11px;">'
+                        'SHAP contribution: ' + f"{shap_contrib:.4f}"
+                        + '</p></div>'
+                    )
+                    st.markdown(card_html, unsafe_allow_html=True)
             
             st.caption(
                 f"Thời gian xử lý: "
                 f"{report['metadata']['processing_time_seconds']}s"
             )
 
-# ============================================================
-# TAB 2 + TAB 3 (placeholders)
-# ============================================================
+# TAB 2
 with tab2:
     st.header("Upload CSV cho nhiều sinh viên")
     st.info("Phase 6 sẽ thêm chức năng upload file ở đây.")
 
+# TAB 3
 with tab3:
     st.header("Về hệ thống")
     st.markdown("""
@@ -243,6 +282,5 @@ with tab3:
     - Production model: XGBoost + SMOTE + Isotonic Calibration
     """)
 
-# FOOTER
 st.divider()
 st.caption("XAI OULAD v1.0 | Học máy nâng cao - Cao học | 2026")
