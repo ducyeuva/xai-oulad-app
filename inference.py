@@ -1,4 +1,6 @@
-"""Inference module cho XAI OULAD Risk Warning System."""
+"""
+Inference module cho XAI OULAD Risk Warning System.
+"""
 import json, time
 from pathlib import Path
 import numpy as np
