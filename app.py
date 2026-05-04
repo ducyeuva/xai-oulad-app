@@ -1,6 +1,6 @@
 """
 XAI OULAD Risk Warning System - Streamlit App
-Phase 4 (Cách 1): SHAP bar chart + Gauge P(Risk) + Intervention
+Phase 5: Form predict + SHAP table + Intervention suggestions
 """
 import sys
 import json
@@ -8,7 +8,6 @@ from pathlib import Path
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 
 DEPLOY_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(DEPLOY_DIR))
@@ -42,81 +41,9 @@ PRIORITY_LABELS_VN = {
     "medium": "Trung bình", "low": "Thấp", "none": "Bình thường",
 }
 
-
-def make_gauge(p_risk, warning_level):
-    color = WARNING_COLORS[warning_level]
-    th_extreme = _THRESHOLDS["warning_levels"]["extreme"]
-    th_high = _THRESHOLDS["warning_levels"]["high"]
-    th_medium = _THRESHOLDS["warning_levels"]["medium"]
-    
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=p_risk,
-        number={"valueformat": ".3f", "font": {"size": 40}},
-        title={"text": "P(Rủi ro)", "font": {"size": 18}},
-        gauge={
-            "axis": {"range": [0, 1], "tickwidth": 1, "tickcolor": "gray"},
-            "bar": {"color": color, "thickness": 0.8},
-            "steps": [
-                {"range": [0, th_medium], "color": "#D5F5E3"},
-                {"range": [th_medium, th_high], "color": "#FCF3CF"},
-                {"range": [th_high, th_extreme], "color": "#F5CBA7"},
-                {"range": [th_extreme, 1], "color": "#F5B7B1"},
-            ],
-            "threshold": {
-                "line": {"color": "black", "width": 3},
-                "thickness": 0.75,
-                "value": _THRESHOLDS["decision_threshold"],
-            },
-        },
-    ))
-    fig.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=50, b=20),
-        font={"family": "Arial"},
-    )
-    return fig
-
-
-def make_shap_bar_chart(shap_factors):
-    df = pd.DataFrame(shap_factors)
-    df = df.sort_values("shap_value")
-    
-    colors = ["#27AE60" if v > 0 else "#C0392B" for v in df["shap_value"]]
-    
-    fig = go.Figure(go.Bar(
-        x=df["shap_value"],
-        y=df["feature"],
-        orientation="h",
-        marker=dict(color=colors),
-        text=[f"{v:+.3f}" for v in df["shap_value"]],
-        textposition="outside",
-        hovertemplate=(
-            "<b>%{y}</b><br>"
-            "Value: %{customdata}<br>"
-            "SHAP: %{x:+.4f}<extra></extra>"
-        ),
-        customdata=df["value"],
-    ))
-    
-    fig.update_layout(
-        title="Top 5 đặc trưng ảnh hưởng (SHAP)",
-        xaxis_title="SHAP value (← Risk | Safe →)",
-        yaxis_title="",
-        height=350,
-        margin=dict(l=20, r=80, t=50, b=40),
-        showlegend=False,
-        plot_bgcolor="white",
-    )
-    fig.add_vline(x=0, line_width=1, line_color="gray")
-    
-    return fig
-
-
 st.title("Hệ thống cảnh báo sớm rủi ro học tập")
 st.caption("Powered by XGBoost + SHAP/LIME | Dataset: OULAD")
 
-# SIDEBAR
 with st.sidebar:
     st.header("Thông tin Model")
     
@@ -153,7 +80,6 @@ tab1, tab2, tab3 = st.tabs([
     "Về hệ thống",
 ])
 
-# TAB 1
 with tab1:
     st.header("Dự đoán cho 1 sinh viên")
     st.caption("Nhập đặc trưng của sinh viên để dự đoán mức rủi ro học tập.")
@@ -241,12 +167,13 @@ with tab1:
             label_vn = WARNING_LABELS_VN[level]
             p_risk = report["prediction"]["p_risk"]
             
-            # Banner
             banner_html = (
                 '<div style="background-color:' + color + ';padding:25px;'
-                'border-radius:10px;text-align:center;color:white;margin-bottom:20px;">'
+                'border-radius:10px;text-align:center;color:white;">'
                 '<h2 style="margin:0;color:white;">'
                 'Mức cảnh báo: ' + label_vn + ' (' + level + ')</h2>'
+                '<p style="margin:10px 0 0;font-size:20px;color:white;">'
+                'P(Rủi ro) = ' + f"{p_risk:.4f}" + '</p>'
                 '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
                 'Decision: ' + report["prediction"]["decision"]
                 + ' (threshold = ' + f"{_THRESHOLDS['decision_threshold']:.3f}"
@@ -254,33 +181,19 @@ with tab1:
             )
             st.markdown(banner_html, unsafe_allow_html=True)
             
-            # GAUGE + SHAP BAR CHART
-            col_left, col_right = st.columns([1, 2])
+            st.write("")
             
-            with col_left:
-                st.plotly_chart(
-                    make_gauge(p_risk, level),
-                    use_container_width=True,
-                )
+            st.subheader("Top 5 đặc trưng ảnh hưởng nhất")
+            shap_data = report["explanations"]["shap_factors"]
+            shap_df = pd.DataFrame(shap_data)
+            shap_df["direction_emoji"] = shap_df["direction"].map({
+                "Risk": "⬇️ Risk", "Safe": "⬆️ Safe"
+            })
+            st.dataframe(
+                shap_df[["feature", "value", "shap_value", "direction_emoji"]],
+                use_container_width=True, hide_index=True,
+            )
             
-            with col_right:
-                st.plotly_chart(
-                    make_shap_bar_chart(report["explanations"]["shap_factors"]),
-                    use_container_width=True,
-                )
-            
-            # Bảng chi tiết SHAP (collapsed)
-            with st.expander("Xem chi tiết SHAP values", expanded=False):
-                shap_df = pd.DataFrame(report["explanations"]["shap_factors"])
-                shap_df["direction_emoji"] = shap_df["direction"].map({
-                    "Risk": "⬇️ Risk", "Safe": "⬆️ Safe"
-                })
-                st.dataframe(
-                    shap_df[["feature", "value", "shap_value", "direction_emoji"]],
-                    use_container_width=True, hide_index=True,
-                )
-            
-            # INTERVENTION SUGGESTIONS
             st.divider()
             st.subheader("🚨 Gợi ý can thiệp")
             
@@ -338,12 +251,10 @@ with tab1:
                 f"{report['metadata']['processing_time_seconds']}s"
             )
 
-# TAB 2
 with tab2:
     st.header("Upload CSV cho nhiều sinh viên")
     st.info("Phase 6 sẽ thêm chức năng upload file ở đây.")
 
-# TAB 3
 with tab3:
     st.header("Về hệ thống")
     st.markdown("""
