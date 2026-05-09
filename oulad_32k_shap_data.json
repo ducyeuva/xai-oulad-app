@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "n_sample_global": 1000
+  },
+  "shap_global_top15": [
+    {
+      "feature": "last_active_day",
+      "mean_abs_shap": 1.5489906072616577
+    },
+    {
+      "feature": "recent_30d_clicks",
+      "mean_abs_shap": 0.708061933517456
+    },
+    {
+      "feature": "highest_education",
+      "mean_abs_shap": 0.2630932927131653
+    },
+    {
+      "feature": "active_days",
+      "mean_abs_shap": 0.17279352247714996
+    },
+    {
+      "feature": "click_quiz",
+      "mean_abs_shap": 0.15857838094234467
+    },
+    {
+      "feature": "click_page",
+      "mean_abs_shap": 0.1556246131658554
+    },
+    {
+      "feature": "mod_FFF",
+      "mean_abs_shap": 0.14172464609146118
+    },
+    {
+      "feature": "mod_DDD",
+      "mean_abs_shap": 0.13462771475315094
+    },
+    {
+      "feature": "mod_GGG",
+      "mean_abs_shap": 0.1317501664161682
+    },
+    {
+      "feature": "click_homepage",
+      "mean_abs_shap": 0.1251680850982666
+    },
+    {
+      "feature": "mod_CCC",
+      "mean_abs_shap": 0.1250264197587967
+    },
+    {
+      "feature": "imd_band",
+      "mean_abs_shap": 0.12496021389961243
+    },
+    {
+      "feature": "click_oucontent",
+      "mean_abs_shap": 0.1063089594244957
+    },
+    {
+      "feature": "total_clicks",
+      "mean_abs_shap": 0.09419815987348557
+    },
+    {
+      "feature": "click_subpage",
+      "mean_abs_shap": 0.08607909828424454
+    }
+  ],
+  "shap_local_cases": {
+    "EXTREME": {
+      "sv_index": 28366,
+      "p_risk": 0.9999729990959167,
+      "top5_factors": [
+        {
+          "feature": "last_active_day",
+          "value": 19.0,
+          "shap_value": -4.707085609436035,
+          "direction": "Risk"
+        },
+        {
+          "feature": "recent_30d_clicks",
+          "value": 0.0,
+          "shap_value": -1.5970138311386108,
+          "direction": "Risk"
+        },
+        {
+          "feature": "click_ouwiki",
+          "value": 115.0,
+          "shap_value": -0.7595245242118835,
+          "direction": "Risk"
+        },
+        {
+          "feature": "click_subpage",
+          "value": 175.0,
+          "shap_value": -0.4149681031703949,
+          "direction": "Risk"
+        },
+        {
+          "feature": "click_homepage",
+          "value": 405.0,
+          "shap_value": -0.3653149902820587,
+          "direction": "Risk"
+        }
+      ]
+    },
+    "HIGH": {
+      "sv_index": 16210,
+      "p_risk": 0.6703183650970459,
+      "top5_factors": [
+        {
+          "feature": "mod_DDD",
+          "value": 1.0,
+          "shap_value": -0.42280834913253784,
+          "direction": "Risk"
+        },
+        {
+          "feature": "last_active_day",
+          "value": 93.0,
+          "shap_value": 0.4146440923213959,
+          "direction": "Safe"
+        },
+        {
+          "feature": "highest_education",
+          "value": 1.0,
+          "shap_value": -0.4131125807762146,
+          "direction": "Risk"
+        },
+        {
+          "feature": "num_of_prev_attempts",
+          "value": 1.0,
+          "shap_value": -0.2937908172607422,
+          "direction": "Risk"
+        },
+        {
+          "feature": "click_quiz",
+          "value": 0.0,
+          "shap_value": -0.2400839626789093,
+          "direction": "Risk"
+        }
+      ]
+    },
+    "MEDIUM": {
+      "sv_index": 14517,
+      "p_risk": 0.4418727159500122,
+      "top5_factors": [
+        {
+          "feature": "last_active_day",
+          "value": 98.0,
+          "shap_value": 0.8104057908058167,
+          "direction": "Safe"
+        },
+        {
+          "feature": "highest_education",
+          "value": 1.0,
+          "shap_value": -0.42187684774398804,
+          "direction": "Risk"
+        },
+        {
+          "feature": "mod_DDD",
+          "value": 1.0,
+          "shap_value": -0.2906187176704407,
+          "direction": "Risk"
+        },
+        {
+          "feature": "click_quiz",
+          "value": 0.0,
+          "shap_value": -0.2510416805744171,
+          "direction": "Risk"
+        },
+        {
+          "feature": "recent_30d_clicks",
+          "value": 45.0,
+          "shap_value": 0.16272331774234772,
+          "direction": "Safe"
+        }
+      ]
+    },
+    "SAFE": {
+      "sv_index": 23289,
+      "p_risk": 0.005777537822723389,
+      "top5_factors": [
+        {
+          "feature": "recent_30d_clicks",
+          "value": 1451.0,
+          "shap_value": 1.9707988500595093,
+          "direction": "Safe"
+        },
+        {
+          "feature": "active_days",
+          "value": 112.0,
+          "shap_value": 1.2554731369018555,
+          "direction": "Safe"
+        },
+        {
+          "feature": "last_active_day",
+          "value": 100.0,
+          "shap_value": 1.1685264110565186,
+          "direction": "Safe"
+        },
+        {
+          "feature": "click_quiz",
+          "value": 496.0,
+          "shap_value": 0.4378889203071594,
+          "direction": "Safe"
+        },
+        {
+          "feature": "click_page",
+          "value": 13.0,
+          "shap_value": -0.2981651723384857,
+          "direction": "Risk"
+        }
+      ]
+    }
+  }
+}
