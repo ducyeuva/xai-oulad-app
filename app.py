@@ -366,7 +366,7 @@ with tab2:
         total = len(df)
         
         with col1:
-            st.metric("Tổng SV", f"{total:,}")
+            st.metric("Tổng quan sát", f"{total:,}")
         with col2:
             n = counts.get("EXTREME", 0)
             st.metric("🔴 EXTREME", f"{n:,}", f"{n/total*100:.1f}%")
