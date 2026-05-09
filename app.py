@@ -659,43 +659,135 @@ with tab4:
                 )
                 st.markdown(banner_html, unsafe_allow_html=True)
                 
-                col_g, col_info = st.columns([1, 2])
+                # ===== Load features đầy đủ và chạy SHAP =====
+                features_df = load_full_features()
+                
+                if features_df is None:
+                    st.warning(
+                        "⚠️ Không tìm thấy file `oulad_32k_features.parquet`. "
+                        "Hiển thị thông tin cơ bản, không có SHAP."
+                    )
+                    has_shap = False
+                else:
+                    feat_row = features_df[
+                        features_df["id_student"].astype(str) == id_clean
+                    ]
+                    if len(feat_row) == 0:
+                        st.warning(
+                            f"⚠️ Không tìm thấy features cho SV {id_clean}. "
+                            "Có thể file features chưa đồng bộ."
+                        )
+                        has_shap = False
+                    else:
+                        student_features = feat_row[_FEATURE_COLS].iloc[[0]]
+                        with st.spinner("🔬 Đang chạy SHAP analysis..."):
+                            report = predict_new_student(
+                                student_features, include_shap=True
+                            )
+                        has_shap = True
+                
+                # ===== Hiển thị 2 cột: Gauge + SHAP =====
+                col_g, col_s = st.columns([1, 2])
                 
                 with col_g:
-                    st.plotly_chart(make_gauge(p_risk, level), use_container_width=True)
-                
-                with col_info:
-                    st.subheader("📊 Vị trí trong dataset")
+                    st.plotly_chart(make_gauge(p_risk, level),
+                                     use_container_width=True)
+                    
                     rank_cols = st.columns(2)
                     rank_cols[0].metric(
-                        "Xếp hạng theo P(Risk)",
-                        f"{rank:,} / {len(df_32k):,}",
+                        "Xếp hạng",
+                        f"{rank:,}/{len(df_32k):,}",
                     )
                     rank_cols[1].metric(
-                        "Top % rủi ro nhất",
+                        "Top % rủi ro",
                         f"{percentile_top:.1f}%",
                     )
-                    
-                    st.subheader("👤 Thông tin sinh viên")
-                    info_show = student.drop(
-                        ["id_student", "p_risk", "warning_level"],
-                        errors="ignore"
-                    )
-                    st.dataframe(
-                        pd.DataFrame({
-                            "Đặc trưng": info_show.index,
-                            "Giá trị": info_show.values,
-                        }),
-                        use_container_width=True,
-                        hide_index=True,
-                        height=250,
-                    )
                 
-                st.info(
-                    "💡 **Để xem SHAP analysis chi tiết và gợi ý can thiệp cho SV này:** "
-                    "Chuyển sang **Tab 1 - Dự đoán cho 1 sinh viên** và nhập các đặc trưng "
-                    "từ bảng thông tin trên."
-                )
+                with col_s:
+                    if has_shap:
+                        st.plotly_chart(
+                            make_shap_bar_chart(
+                                report["explanations"]["shap_factors"],
+                                title=f"Top 5 đặc trưng ảnh hưởng — SV {id_clean}"
+                            ),
+                            use_container_width=True,
+                        )
+                    else:
+                        st.subheader("👤 Thông tin sinh viên")
+                        info_show = student.drop(
+                            ["id_student", "p_risk", "warning_level"],
+                            errors="ignore"
+                        )
+                        st.dataframe(
+                            pd.DataFrame({
+                                "Đặc trưng": info_show.index,
+                                "Giá trị": info_show.values,
+                            }),
+                            use_container_width=True, hide_index=True,
+                        )
+                
+                # ===== SHAP detail + Interventions =====
+                if has_shap:
+                    with st.expander("🔍 Xem chi tiết SHAP values", expanded=False):
+                        shap_df = pd.DataFrame(report["explanations"]["shap_factors"])
+                        shap_df["direction_emoji"] = shap_df["direction"].map({
+                            "Risk": "⬇️ Risk", "Safe": "⬆️ Safe"
+                        })
+                        st.dataframe(
+                            shap_df[["feature", "value", "shap_value", "direction_emoji"]],
+                            use_container_width=True, hide_index=True,
+                        )
+                    
+                    st.divider()
+                    st.subheader("🚨 Gợi ý can thiệp cho sinh viên này")
+                    interventions = report.get("interventions", [])
+                    
+                    if not interventions:
+                        st.info("Không có gợi ý can thiệp.")
+                    elif interventions[0].get("priority") == "none":
+                        st.success(
+                            "✅ **SV trong vùng an toàn** — không cần can thiệp đặc biệt."
+                        )
+                    else:
+                        st.caption(
+                            f"Dựa trên {len(interventions)} đặc trưng đẩy về Risk:"
+                        )
+                        for idx, intv in enumerate(interventions, 1):
+                            priority = intv.get("priority", "medium")
+                            p_color = PRIORITY_COLORS.get(priority, "#95A5A6")
+                            p_icon = PRIORITY_ICONS.get(priority, "ℹ️")
+                            p_label = PRIORITY_LABELS_VN.get(priority, priority)
+                            feature = intv.get("feature", "N/A")
+                            interpretation = intv.get("interpretation", "")
+                            intervention_text = intv.get("intervention", "")
+                            shap_contrib = intv.get("shap_contribution", 0)
+                            card_html = (
+                                '<div style="background-color:#F8F9FA;'
+                                'border-left:5px solid ' + p_color + ';'
+                                'padding:15px;margin-bottom:10px;border-radius:5px;">'
+                                '<div style="display:flex;justify-content:space-between;'
+                                'align-items:center;margin-bottom:8px;">'
+                                '<span style="font-weight:bold;font-size:16px;">'
+                                + p_icon + ' Mức độ: ' + p_label
+                                + ' (Ưu tiên ' + str(idx) + ')</span>'
+                                '<span style="background-color:' + p_color
+                                + ';color:white;padding:3px 10px;'
+                                'border-radius:12px;font-size:12px;">'
+                                + feature + '</span></div>'
+                                '<p style="margin:5px 0;color:#555;font-size:13px;">'
+                                '<i>📊 ' + interpretation + '</i></p>'
+                                '<p style="margin:8px 0 0 0;font-size:14px;">'
+                                '<b>💡 Hành động:</b> ' + intervention_text + '</p>'
+                                '<p style="margin:5px 0 0 0;color:#888;font-size:11px;">'
+                                'SHAP contribution: ' + f"{shap_contrib:.4f}"
+                                + '</p></div>'
+                            )
+                            st.markdown(card_html, unsafe_allow_html=True)
+                    
+                    st.caption(
+                        f"Thời gian xử lý: "
+                        f"{report['metadata']['processing_time_seconds']}s"
+                    )
 
 
 # ===== FOOTER =====
