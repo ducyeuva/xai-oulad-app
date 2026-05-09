@@ -644,7 +644,7 @@ with tab4:
                         '<div style="background-color:' + color + ';padding:25px;'
                         'border-radius:10px;text-align:center;color:white;margin-bottom:20px;">'
                         '<h2 style="margin:0;color:white;">'
-                        'Sinh viên #' + str(id_int) + ' — Mức cảnh báo: '
+                        'Sinh viên #' + str(student["id_student"]) + ' — Mức cảnh báo: '
                         + label_vn + ' (' + level + ')</h2>'
                         '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
                         f'P(Rủi ro) = {p_risk:.3f} | threshold = {_THRESHOLDS["decision_threshold"]:.3f}'
