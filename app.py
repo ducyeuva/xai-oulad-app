@@ -174,7 +174,7 @@ with st.sidebar:
         with col2:
             st.metric("Recall (Risk)", f"{metrics['recall_0']:.3f}")
             st.metric("ROC-AUC", f"{metrics['roc_auc']:.3f}")
-        st.caption(f"Test set: {n_test:,} sinh viên")
+        st.caption(f"Test set: {n_test:,} lượt đăng ký")
     except Exception as e:
         st.error(f"Không load được metadata: {e}")
     
