@@ -584,9 +584,8 @@ with tab4:
         with col_in1:
             id_str = st.text_input(
                 "Mã sinh viên (id_student)",
-                value=st.session_state["id_input_t4"],
                 placeholder="VD: 11391",
-                key="id_input_field_t4",
+                key="id_input_t4",
             )
         with col_in2:
             if st.button("🎲 Random", use_container_width=True, key="btn_random_t4"):
