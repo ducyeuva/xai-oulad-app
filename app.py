@@ -621,14 +621,13 @@ with tab4:
         
         # Predict & display
         if predict_id_btn and id_str.strip():
-            try:
-                id_int = int(id_str.strip())
-                student_row = df_32k[df_32k["id_student"] == id_int]
-                
-                if len(student_row) == 0:
-                    st.error(f"❌ Không tìm thấy SV ID = **{id_int}** trong dataset 32K.")
-                else:
-                    student = student_row.iloc[0]
+            id_clean = id_str.strip()
+            student_row = df_32k[df_32k["id_student"].astype(str) == id_clean]
+            
+            if len(student_row) == 0:
+                st.error(f"❌ Không tìm thấy SV ID = **{id_clean}** trong dataset 32K.")
+            else:
+                student = student_row.iloc[0]
                     level = student["warning_level"]
                     p_risk = float(student["p_risk"])
                     color = WARNING_COLORS[level]
@@ -691,9 +690,6 @@ with tab4:
                         "Chuyển sang **Tab 1 - Dự đoán cho 1 sinh viên** và nhập các đặc trưng "
                         "từ bảng thông tin trên."
                     )
-            except ValueError:
-                st.error("⚠️ Mã sinh viên phải là số nguyên.")
-
 
 
 # ===== FOOTER =====
