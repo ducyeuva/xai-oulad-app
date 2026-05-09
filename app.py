@@ -397,7 +397,7 @@ with tab2:
             ))
             fig_bar.update_layout(
                 title="Phân bố mức cảnh báo",
-                xaxis_title="Mức cảnh báo", yaxis_title="Số SV",
+                xaxis_title="Mức cảnh báo", yaxis_title="Số quan sát",
                 height=400, plot_bgcolor="white", showlegend=False,
             )
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -431,7 +431,7 @@ with tab2:
             fig_mod.update_layout(
                 barmode="stack",
                 title="Số SV theo Module và Mức cảnh báo",
-                xaxis_title="Module", yaxis_title="Số SV",
+                xaxis_title="Module", yaxis_title="Số quan sát",
                 height=450, plot_bgcolor="white",
             )
             st.plotly_chart(fig_mod, use_container_width=True)
@@ -447,7 +447,7 @@ with tab2:
         )
         fig_hist.update_layout(
             title="Histogram P(Risk)",
-            xaxis_title="P(Risk)", yaxis_title="Số SV",
+            xaxis_title="P(Risk)", yaxis_title="Số quan sát",
             height=400, plot_bgcolor="white",
         )
         for th_name, th_val in [
