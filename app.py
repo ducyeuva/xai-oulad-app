@@ -162,10 +162,11 @@ with st.sidebar:
     st.text(f"HIGH:    >= {_THRESHOLDS['warning_levels']['high']:.2f}")
     st.text(f"MEDIUM:  >= {_THRESHOLDS['warning_levels']['medium']:.2f}")
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "Dự đoán 1 sinh viên",
     "Dashboard OULAD 32K + SHAP",
     "Về hệ thống",
+    "Tra cứu theo ID",
 ])
 
 # ===== TAB 1 =====
@@ -542,26 +543,189 @@ with tab3:
     - Production model: XGBoost + SMOTE + Isotonic Calibration
     """)
 
+
+# ===== TAB 4: Tra cứu theo ID =====
+with tab4:
+    st.header("🔍 Tra cứu sinh viên theo ID")
+    st.caption(
+        "Nhập mã sinh viên (id_student) trong dataset OULAD 32K để xem "
+        "mức cảnh báo rủi ro của sinh viên đó."
+    )
+    
+    df_32k = load_dashboard_data()
+    if df_32k is None:
+        st.error("❌ Không tìm thấy file `oulad_32k_predictions.csv`.")
+    else:
+        # Bộ lọc danh sách
+        with st.expander("🔧 Bộ lọc danh sách", expanded=False):
+            fcol1, fcol2 = st.columns(2)
+            with fcol1:
+                if "module" in df_32k.columns:
+                    modules_avail = ["Tất cả"] + sorted(df_32k["module"].unique().tolist())
+                    sel_mod = st.selectbox("Khóa học", modules_avail, key="filt_mod_t4")
+                else:
+                    sel_mod = "Tất cả"
+            with fcol2:
+                levels_avail = ["Tất cả", "EXTREME", "HIGH", "MEDIUM", "SAFE"]
+                sel_lvl = st.selectbox("Mức cảnh báo", levels_avail, key="filt_lvl_t4")
+            
+            df_filt = df_32k.copy()
+            if sel_mod != "Tất cả" and "module" in df_filt.columns:
+                df_filt = df_filt[df_filt["module"] == sel_mod]
+            if sel_lvl != "Tất cả":
+                df_filt = df_filt[df_filt["warning_level"] == sel_lvl]
+            st.caption(f"Số SV phù hợp: **{len(df_filt):,}** / {len(df_32k):,}")
+        
+        # Input ID
+        if "id_input_t4" not in st.session_state:
+            st.session_state["id_input_t4"] = ""
+        
+        col_in1, col_in2, col_in3 = st.columns([3, 1, 1])
+        with col_in1:
+            id_str = st.text_input(
+                "Mã sinh viên (id_student)",
+                value=st.session_state["id_input_t4"],
+                placeholder="VD: 11391",
+                key="id_input_field_t4",
+            )
+        with col_in2:
+            if st.button("🎲 Random", use_container_width=True, key="btn_random_t4"):
+                if len(df_filt) > 0:
+                    st.session_state["id_input_t4"] = str(
+                        df_filt["id_student"].sample(1).iloc[0]
+                    )
+                    st.rerun()
+        with col_in3:
+            predict_id_btn = st.button(
+                "✓ Tra cứu",
+                type="primary",
+                use_container_width=True,
+                key="btn_predict_id_t4",
+            )
+        
+        # Predict & display
+        if predict_id_btn and id_str.strip():
+            try:
+                id_int = int(id_str.strip())
+                student_row = df_32k[df_32k["id_student"] == id_int]
+                
+                if len(student_row) == 0:
+                    st.error(f"❌ Không tìm thấy SV ID = **{id_int}** trong dataset 32K.")
+                else:
+                    student = student_row.iloc[0]
+                    level = student["warning_level"]
+                    p_risk = float(student["p_risk"])
+                    color = WARNING_COLORS[level]
+                    label_vn = WARNING_LABELS_VN[level]
+                    
+                    # Tính rank
+                    rank = int((df_32k["p_risk"] >= p_risk).sum())
+                    percentile_top = rank / len(df_32k) * 100
+                    
+                    st.divider()
+                    
+                    # Banner cảnh báo
+                    banner_html = (
+                        '<div style="background-color:' + color + ';padding:25px;'
+                        'border-radius:10px;text-align:center;color:white;margin-bottom:20px;">'
+                        '<h2 style="margin:0;color:white;">'
+                        'Sinh viên #' + str(id_int) + ' — Mức cảnh báo: '
+                        + label_vn + ' (' + level + ')</h2>'
+                        '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
+                        f'P(Rủi ro) = {p_risk:.3f} | threshold = {_THRESHOLDS["decision_threshold"]:.3f}'
+                        '</p></div>'
+                    )
+                    st.markdown(banner_html, unsafe_allow_html=True)
+                    
+                    # Layout 2 cột: Gauge | Thông tin
+                    col_g, col_info = st.columns([1, 2])
+                    
+                    with col_g:
+                        st.plotly_chart(make_gauge(p_risk, level), use_container_width=True)
+                    
+                    with col_info:
+                        st.subheader("📊 Vị trí trong dataset")
+                        rank_cols = st.columns(2)
+                        rank_cols[0].metric(
+                            "Xếp hạng theo P(Risk)",
+                            f"{rank:,} / {len(df_32k):,}",
+                        )
+                        rank_cols[1].metric(
+                            "Top % rủi ro nhất",
+                            f"{percentile_top:.1f}%",
+                        )
+                        
+                        st.subheader("👤 Thông tin sinh viên")
+                        info_show = student.drop(
+                            ["id_student", "p_risk", "warning_level"],
+                            errors="ignore"
+                        )
+                        st.dataframe(
+                            pd.DataFrame({
+                                "Đặc trưng": info_show.index,
+                                "Giá trị": info_show.values,
+                            }),
+                            use_container_width=True,
+                            hide_index=True,
+                            height=250,
+                        )
+                    
+                    st.info(
+                        "💡 **Để xem SHAP analysis chi tiết và gợi ý can thiệp cho SV này:** "
+                        "Chuyển sang **Tab 1 - Dự đoán cho 1 sinh viên** và nhập các đặc trưng "
+                        "từ bảng thông tin trên."
+                    )
+            except ValueError:
+                st.error("⚠️ Mã sinh viên phải là số nguyên.")
+
+
+
 # ===== FOOTER =====
 st.divider()
 footer_html = """
-<div style="text-align:center;padding:20px;background-color:#F8F9FA;
-            border-radius:10px;margin-top:20px;">
-    <p style="margin:0;font-weight:bold;font-size:16px;color:#2C3E50;">
-        Hệ thống cảnh báo sớm rủi ro học tập - XAI trên dataset OULAD
-    </p>
-    <p style="margin:5px 0;color:#555;font-size:14px;">
-        <b>Học phần:</b> Học máy nâng cao  | 
-        <b>GVHD:</b> NGÔ QUỐC VIỆT
-    </p>
-    <p style="margin:5px 0;color:#555;font-size:14px;">
-        <b>Học viên cao học:</b><br>
-        Hoàng Châu Ngọc Phương - KHMT836028<br>
-        Đoàn Huỳnh Thanh Tú - KHMT836034
-    </p>
-    <p style="margin:5px 0 0;color:#888;font-size:12px;">
-        XAI OULAD v1.0 | 2026
-    </p>
+<div style="background:linear-gradient(135deg,#F8F9FA 0%,#E9ECEF 100%);
+            padding:30px 40px;border-radius:12px;margin-top:30px;
+            border-top:4px solid #2C3E50;">
+    <div style="display:grid;grid-template-columns:2fr 1.5fr 1.5fr;gap:30px;
+                margin-bottom:20px;">
+        <div>
+            <h4 style="margin:0 0 10px;color:#2C3E50;font-size:16px;">
+                🎓 XAI OULAD Risk Warning System
+            </h4>
+            <p style="margin:0;color:#555;font-size:13px;line-height:1.6;">
+                Hệ thống cảnh báo sớm rủi ro học tập sử dụng 
+                Explainable AI trên dataset OULAD.
+            </p>
+            <p style="margin:8px 0 0;color:#888;font-size:11px;">
+                Powered by XGBoost + SMOTE + Isotonic Calibration + SHAP/LIME
+            </p>
+        </div>
+        <div style="border-left:2px solid #DEE2E6;padding-left:25px;">
+            <h4 style="margin:0 0 10px;color:#2C3E50;font-size:14px;">
+                📚 Học phần
+            </h4>
+            <p style="margin:0;color:#555;font-size:13px;line-height:1.8;">
+                <b>Học máy nâng cao</b><br>
+                <span style="color:#888;">GVHD:</span> TS. Ngô Quốc Việt<br>
+                <span style="color:#888;">Trường:</span> ĐHSP TP.HCM
+            </p>
+        </div>
+        <div style="border-left:2px solid #DEE2E6;padding-left:25px;">
+            <h4 style="margin:0 0 10px;color:#2C3E50;font-size:14px;">
+                👥 Nhóm thực hiện
+            </h4>
+            <p style="margin:0;color:#555;font-size:13px;line-height:1.8;">
+                Hoàng Châu Ngọc Phương<br>
+                <span style="color:#888;font-size:11px;">KHMT836028</span><br>
+                Đoàn Huỳnh Thanh Tú<br>
+                <span style="color:#888;font-size:11px;">KHMT836034</span>
+            </p>
+        </div>
+    </div>
+    <div style="text-align:center;padding-top:15px;
+                border-top:1px solid #DEE2E6;color:#999;font-size:11px;">
+        XAI OULAD v1.0 © 2026 | All rights reserved
+    </div>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
