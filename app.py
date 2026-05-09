@@ -587,21 +587,6 @@ with tab4:
                 placeholder="VD: 11391",
                 key="id_input_t4",
             )
-      def _randomize_t4_id():
-            df_temp = load_dashboard_data()
-            if df_temp is None:
-                return
-            df_f = df_temp.copy()
-            sm = st.session_state.get("filt_mod_t4", "Tất cả")
-            sl = st.session_state.get("filt_lvl_t4", "Tất cả")
-            if sm != "Tất cả" and "module" in df_f.columns:
-                df_f = df_f[df_f["module"] == sm]
-            if sl != "Tất cả":
-                df_f = df_f[df_f["warning_level"] == sl]
-            if len(df_f) > 0:
-                st.session_state["id_input_t4"] = str(
-                    df_f["id_student"].sample(1).iloc[0]
-                )
         
         with col_in2:
             st.button(
