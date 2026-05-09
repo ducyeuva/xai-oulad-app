@@ -129,7 +129,14 @@ def _randomize_t4_id():
             df_f["id_student"].sample(1).iloc[0]
         )
 
-
+@st.cache_data
+def load_full_features():
+    """Load file features đầy đủ 43 cột để chạy SHAP cho từng SV."""
+    parquet_path = DEPLOY_DIR / "oulad_32k_features.parquet"
+    if parquet_path.exists():
+        return pd.read_parquet(parquet_path)
+    return None
+    
 @st.cache_data
 def load_dashboard_data():
     csv_path = DEPLOY_DIR / "oulad_32k_predictions.csv"
