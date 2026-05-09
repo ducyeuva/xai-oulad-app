@@ -12,7 +12,7 @@ Hệ thống cảnh báo sớm rủi ro học tập sử dụng XGBoost + SHAP/L
 | F1 (Risk) | 0.8175 |
 | ROC-AUC | 0.9004 |
 
-Test set: 4889 sinh viên.
+Test set: 4889 lượt đăng ký - dòng dữ liệu.
 
 ## Usage
 
