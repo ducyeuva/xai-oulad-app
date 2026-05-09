@@ -628,68 +628,67 @@ with tab4:
                 st.error(f"❌ Không tìm thấy SV ID = **{id_clean}** trong dataset 32K.")
             else:
                 student = student_row.iloc[0]
-                    level = student["warning_level"]
-                    p_risk = float(student["p_risk"])
-                    color = WARNING_COLORS[level]
-                    label_vn = WARNING_LABELS_VN[level]
-                    
-                    # Tính rank
-                    rank = int((df_32k["p_risk"] >= p_risk).sum())
-                    percentile_top = rank / len(df_32k) * 100
-                    
-                    st.divider()
-                    
-                    # Banner cảnh báo
-                    banner_html = (
-                        '<div style="background-color:' + color + ';padding:25px;'
-                        'border-radius:10px;text-align:center;color:white;margin-bottom:20px;">'
-                        '<h2 style="margin:0;color:white;">'
-                        'Sinh viên #' + str(student["id_student"]) + ' — Mức cảnh báo: '
-                        + label_vn + ' (' + level + ')</h2>'
-                        '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
-                        f'P(Rủi ro) = {p_risk:.3f} | threshold = {_THRESHOLDS["decision_threshold"]:.3f}'
-                        '</p></div>'
+                level = student["warning_level"]
+                p_risk = float(student["p_risk"])
+                color = WARNING_COLORS[level]
+                label_vn = WARNING_LABELS_VN[level]
+                
+                # Tính rank
+                rank = int((df_32k["p_risk"] >= p_risk).sum())
+                percentile_top = rank / len(df_32k) * 100
+                
+                st.divider()
+                
+                # Banner cảnh báo
+                banner_html = (
+                    '<div style="background-color:' + color + ';padding:25px;'
+                    'border-radius:10px;text-align:center;color:white;margin-bottom:20px;">'
+                    '<h2 style="margin:0;color:white;">'
+                    'Sinh viên #' + str(student["id_student"]) + ' — Mức cảnh báo: '
+                    + label_vn + ' (' + level + ')</h2>'
+                    '<p style="margin:5px 0 0;font-size:14px;color:white;opacity:0.9;">'
+                    f'P(Rủi ro) = {p_risk:.3f} | threshold = {_THRESHOLDS["decision_threshold"]:.3f}'
+                    '</p></div>'
+                )
+                st.markdown(banner_html, unsafe_allow_html=True)
+                
+                col_g, col_info = st.columns([1, 2])
+                
+                with col_g:
+                    st.plotly_chart(make_gauge(p_risk, level), use_container_width=True)
+                
+                with col_info:
+                    st.subheader("📊 Vị trí trong dataset")
+                    rank_cols = st.columns(2)
+                    rank_cols[0].metric(
+                        "Xếp hạng theo P(Risk)",
+                        f"{rank:,} / {len(df_32k):,}",
                     )
-                    st.markdown(banner_html, unsafe_allow_html=True)
-                    
-                    # Layout 2 cột: Gauge | Thông tin
-                    col_g, col_info = st.columns([1, 2])
-                    
-                    with col_g:
-                        st.plotly_chart(make_gauge(p_risk, level), use_container_width=True)
-                    
-                    with col_info:
-                        st.subheader("📊 Vị trí trong dataset")
-                        rank_cols = st.columns(2)
-                        rank_cols[0].metric(
-                            "Xếp hạng theo P(Risk)",
-                            f"{rank:,} / {len(df_32k):,}",
-                        )
-                        rank_cols[1].metric(
-                            "Top % rủi ro nhất",
-                            f"{percentile_top:.1f}%",
-                        )
-                        
-                        st.subheader("👤 Thông tin sinh viên")
-                        info_show = student.drop(
-                            ["id_student", "p_risk", "warning_level"],
-                            errors="ignore"
-                        )
-                        st.dataframe(
-                            pd.DataFrame({
-                                "Đặc trưng": info_show.index,
-                                "Giá trị": info_show.values,
-                            }),
-                            use_container_width=True,
-                            hide_index=True,
-                            height=250,
-                        )
-                    
-                    st.info(
-                        "💡 **Để xem SHAP analysis chi tiết và gợi ý can thiệp cho SV này:** "
-                        "Chuyển sang **Tab 1 - Dự đoán cho 1 sinh viên** và nhập các đặc trưng "
-                        "từ bảng thông tin trên."
+                    rank_cols[1].metric(
+                        "Top % rủi ro nhất",
+                        f"{percentile_top:.1f}%",
                     )
+                    
+                    st.subheader("👤 Thông tin sinh viên")
+                    info_show = student.drop(
+                        ["id_student", "p_risk", "warning_level"],
+                        errors="ignore"
+                    )
+                    st.dataframe(
+                        pd.DataFrame({
+                            "Đặc trưng": info_show.index,
+                            "Giá trị": info_show.values,
+                        }),
+                        use_container_width=True,
+                        hide_index=True,
+                        height=250,
+                    )
+                
+                st.info(
+                    "💡 **Để xem SHAP analysis chi tiết và gợi ý can thiệp cho SV này:** "
+                    "Chuyển sang **Tab 1 - Dự đoán cho 1 sinh viên** và nhập các đặc trưng "
+                    "từ bảng thông tin trên."
+                )
 
 
 # ===== FOOTER =====
